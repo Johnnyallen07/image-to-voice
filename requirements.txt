@@ -1,0 +1,4 @@
+watchdog
+pillow
+openai>=1.12
+playsound==1.3.0

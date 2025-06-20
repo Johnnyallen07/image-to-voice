@@ -1,26 +1,21 @@
-from __future__ import annotations
-
-import os
-import time
 import base64
-import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-
-from openai import OpenAI
-from playsound import playsound
+import winsound
 from dotenv import load_dotenv
+from openai import OpenAI
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 load_dotenv()
 
 # --------------------------------------------------
 # Configuration
 # --------------------------------------------------
-WATCH_FOLDER = Path.home() / "Pictures"         # folder to watch for images
-AUDIO_FOLDER = WATCH_FOLDER / "spoken"          # folder to keep MP3s  ← NEW
+WATCH_FOLDER = Path("D:/") / "Draw3DLine" / "Save"      # folder to watch for images
+AUDIO_FOLDER = WATCH_FOLDER / "spoken"         # folder to keep MP3s  ← NEW
 PROMPT_TEXT = (
     "You are a friendly assistant. "
     "Look at the image and give the user concise, constructive feedback."
@@ -30,31 +25,29 @@ MODEL_TTS = "tts-1"
 VOICE = "alloy"
 
 # Make sure the audio folder exists  ← NEW
-AUDIO_FOLDER.mkdir(exist_ok=True)
+AUDIO_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Instantiate a single OpenAI client (reads OPENAI_API_KEY from env)
 client = OpenAI()
 
 
-def talk(text: str) -> None:
-    """Convert text to speech, save it, play it, and tell the user where it lives."""
-    resp = client.audio.speech.create(
+def talk(text: str) -> Path:
+    """Generate speech with OpenAI TTS → WAV → play synchronously."""
+    # ----- 1. request WAV instead of MP3 ------------------------------
+    wav_bytes = client.audio.speech.create(
         model=MODEL_TTS,
         voice=VOICE,
         input=text,
-        response_format="mp3",
-    )
+        response_format="wav",
+    ).content
 
-    # Timestamped filename so nothing is ever overwritten  ← CHANGED
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    mp3_path = AUDIO_FOLDER / f"reply-{ts}.mp3"
+    wav_path = AUDIO_FOLDER / f"reply-{ts}.wav"
+    wav_path.write_bytes(wav_bytes)
 
-    with open(mp3_path, "wb") as f:
-        f.write(resp.content)
-
-    playsound(mp3_path)            # play the file we just saved
-    print(f"🔊  Saved speech to {mp3_path}")  # show where it was stored  ← NEW
-
+    winsound.PlaySound(str(wav_path), winsound.SND_FILENAME)
+    print(f"🔊  Played and saved {wav_path}")
+    return wav_path
 
 def ask_vision(image_path: str) -> str:
     """Send the image plus prompt to the Vision model and return the reply text."""

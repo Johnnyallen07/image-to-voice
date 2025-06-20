@@ -1,4 +1,5 @@
-watchdog
+watchdog~=6.0.0
 pillow
 openai>=1.12
 playsound==1.3.0
+python-dotenv~=1.1.0
